@@ -1,0 +1,987 @@
+---
+title: "22_Joining Data in Postres SQL"
+author: "Steve Chevalier"
+date: "October 2, 2018"
+output: html_document
+---
+
+Course Description
+
+Now that you've learned the basics of SQL in our Intro to SQL for Data Science course, it's time to supercharge your queries using joins and relational set theory! In this course you'll learn all about the power of joining tables while exploring interesting features of countries and their cities throughout the world. You will master inner and outer joins, as well as self-joins, semi-joins, anti-joins and cross joins - fundamental tools in any PostgreSQL wizard's toolbox. You'll fear set theory no more, after learning all about unions, intersections, and except clauses through easy-to-understand diagrams and examples. Lastly, you'll be introduced to the challenging topic of subqueries. You will see a visual perspective to grasp the ideas throughout the course using the mediums of Venn diagrams and other linking illustrations.
+
+accourding to Quora; A phonetic respelling could be 'pohst:grehs:kew:el':
+
+
+Connect to Postgres local instance
+```{r setup}
+library(RPostgreSQL);library(DBI);
+con_postgres <- dbConnect(PostgreSQL(), 
+                   dbname = "22_data_camp",  host = "127.0.0.1", port = 5432,
+                   user = "postgres", password = "admin1")
+```
+
+
+1) Introduction to joins <--------------------------------------
+In this chapter, you'll be introduced to the concept of joining tables, and explore the different ways you can enrich your queries using inner joins and self-joins. You'll also see how to use the case statement to split up a field into different categories. 
+
+Inner join
+
+Throughout this course, you'll be working with the countries database containing information about the most populous world cities as well as country-level economic data, population data, and geographic data. This countries database also contains information on languages spoken in each country.
+
+You can see the different tables in this database by clicking on the tabs on the bottom right below query.sql. Click through them to get a sense for the types of data that each table contains before you continue with the course! Take note of the fields that appear to be shared across the tables.
+
+Recall from the video the basic syntax for an INNER JOIN, here including all columns in both tables:
+
+SELECT *
+FROM left_table
+INNER JOIN right_table
+ON left_table.id = right_table.id;
+
+You'll start off with a SELECT statement and then build up to an inner join with the cities and countries tables. Let's get to it!
+
+```{sql connection=con_postgres}
+select cities.name as city, countries.name as country, region
+from cities 
+inner join countries on country_code = code
+```
+In the next exercise you'll explore how you can do more aliasing to limit the amount of writing.
+
+Inner join (2)
+
+Instead of writing the full table name, you can use table aliasing as a shortcut. For tables you also use AS to add the alias immediately after the table name with a space. Check out the aliasing of cities and countries below.
+
+SELECT c1.name AS city, c2.name AS country
+FROM cities AS c1
+INNER JOIN countries AS c2
+ON c1.country_code = c2.code;
+
+Notice that to select a field in your query that appears in multiple tables, you'll need to identify which table/table alias you're referring to by using a . in your SELECT statement.
+
+You'll now explore a way to get data from both the countries and economies tables to examine the inflation rate for both 2010 and 2015.
+
+```{sql connection=con_postgres}
+SELECT c.code AS country_code, name, year, inflation_rate
+FROM countries AS c
+inner JOIN economies as e
+ON c.code = e.code;
+```
+ Using this short aliases takes some getting used to, but it will save you a lot of typing.
+ 
+Inner join (3)
+
+The ability to combine multiple joins in a single query is a powerful feature of SQL, e.g:
+
+SELECT *
+FROM left_table
+INNER JOIN right_table
+ON left_table.id = right_table.id
+INNER JOIN another_table
+ON left_table.id = another_table.id;
+
+As you can see here it becomes tedious to continually write long table names in joins. This is when it becomes useful to alias each table using the first letter of its name (e.g. countries AS c)! It is standard practice to alias in this way and, if you choose to alias tables or are asked to specifically for an exercise in this course, you should follow this protocol.
+
+Now, for each country, you want to get the country name, its region, and the fertility rate and unemployment rate for both 2010 and 2015. 
+
+```{sql connection=con_postgres}
+SELECT c.code, name, region, e.year, fertility_rate, unemployment_rate
+FROM countries AS c
+INNER JOIN populations AS p
+ON c.code = p.country_code
+INNER JOIN economies AS e on c.code = e.code AND e.year = p.year;
+```
+
+Inner join with using
+
+When joining tables with a common field name, e.g.
+
+SELECT *
+FROM countries
+INNER JOIN economies
+ON countries.code = economies.code
+
+You can use USING as a shortcut:
+
+SELECT *
+FROM countries
+INNER JOIN economies
+USING(code)
+
+You'll now explore how this can be done with the countries and languages tables.
+
+```{sql connection=con_postgres}
+SELECT c.name AS country, continent, l.name AS language, official
+FROM countries AS c
+inner JOIN languages AS l
+USING(code);
+```
+
+Self-join
+
+In this exercise, you'll use the populations table to perform a self-join to calculate the percentage increase in population from 2010 to 2015 for each country code!
+
+Since you'll be joining the populations table to itself, you can alias populations as p1 and also populations as p2. This is good practice whenever you are aliasing and your tables have the same first letter. Note that you are required to alias the tables with self-joins.
+
+```{sql connection=con_postgres}
+SELECT p1.country_code, 
+       p1.size AS size2010,
+       p2.size AS size2015,
+       ((p2.size - p1.size)/ p1.size * 100.0) as growth_perc
+FROM populations AS p1
+inner JOIN populations AS p2
+ON  p1.country_code = p2.country_code and
+    p1.year = p2.year -5;
+```
+Case when and then
+
+Often it's useful to look at a numerical field not as raw data, but instead as being in different categories or groups.
+
+You can use CASE with WHEN, THEN, ELSE, and END to define a new grouping field.
+
+```{sql connection=con_postgres}
+SELECT name, continent, code, surface_area,
+        -- first case
+    CASE WHEN surface_area > 2000000 THEN 'large'
+        -- second case
+        WHEN surface_area > 350000 and surface_area < 2000000 THEN 'medium'
+        -- else clause + end
+        ELSE 'small' END
+        AS geosize_group
+FROM countries;
+```
+
+Inner challenge
+
+The table you created with the added geosize_group field has been loaded for you here with the name countries_plus. Observe the use of (and the placement of) the INTO command to create this countries_plus table:
+
+SELECT name, continent, code, surface_area,
+    CASE WHEN surface_area > 2000000
+            THEN 'large'
+       WHEN surface_area > 350000
+            THEN 'medium'
+       ELSE 'small' END
+       AS geosize_group
+INTO countries_plus
+FROM countries;
+
+You will now explore the relationship between the size of a country in terms of surface area and in terms of population using grouping fields created with CASE.
+
+By the end of this exercise, you'll be writing two queries back-to-back in a single script. You got this!
+
+```{sql connection=con_postgres}
+SELECT country_code, size,
+    CASE WHEN size > 50000000 THEN 'large'
+        WHEN size > 1000000  THEN 'medium'
+        ELSE 'small' END
+        AS popsize_group
+into pop_plus
+FROM populations
+WHERE year = 2015;
+
+select name, continent, geosize_group, popsize_group 
+from countries_plus as c
+inner join pop_plus AS p
+on c.code = p.country_code
+order by geosize_group;
+```
+
+This concludes chapter 1 of the joining data in PostgreSQL course. Off to chapter 2!
+
+
+2) Outer joins and cross joins <--------------------------------------
+In this chapter, you'll come to grips with different kinds of outer joins. You'll learn how to gain further insights into your data through left joins, right joins, and full joins. In addition to outer joins, you'll also work with cross joins. 
+
+```{sql connection=con_postgres}
+-- get the city name (and alias it), the country code,
+-- the country name (and alias it), the region,
+-- and the city proper population
+SELECT c1.name AS city, code, c2.name AS country,
+       region, city_proper_pop
+-- specify left table
+FROM cities AS c1
+-- specify right table and type of join
+INNER JOIN countries AS c2
+-- how should the tables be matched?
+ON c1.country_code = c2.code
+-- sort based on descending country code
+ORDER BY code desc;
+```
+
+```{sql connection=con_postgres}
+-- get the city name (and alias it), the country code,
+-- the country name (and alias it), the region,
+-- and the city proper population
+SELECT c1.name AS city, code, c2.name AS country,
+       region, city_proper_pop
+-- specify left table
+FROM cities AS c1
+-- specify right table and type of join
+left JOIN countries AS c2
+-- how should the tables be matched?
+ON c1.country_code = c2.code
+-- sort based on descending country code
+ORDER BY code desc;
+```
+
+Notice that the INNER JOIN version resulted in 230 records. The LEFT JOIN version returned 236 rows.
+
+Left join (2)
+
+Next, you'll try out another example comparing an inner join to its corresponding left join. Before you begin though, take note of how many records are in both the countries and languages tables below.
+
+You will begin with an inner join on the countries table on the left with the languages table on the right. Then you'll change the code to a left join in the next bullet.
+
+Note the use of multi-line comments here using /* and */.
+
+
+```{sql connection=con_postgres}
+/*
+select country name AS country, the country's local name,
+the language name AS language, and
+the percent of the language spoken in the country
+*/
+select c.name AS country, local_name, l.name AS language, percent
+-- countries on the left (alias as c)
+FROM countries AS c
+-- appropriate join with languages (as l) on the right
+inner JOIN languages as l
+-- give fields to match on
+ON c.code = l.code
+-- sort by descending country name
+ORDER BY country desc;
+```
+
+```{sql connection=con_postgres}
+/*
+select country name AS country, the country's local name,
+the language name AS language, and
+the percent of the language spoken in the country
+*/
+select c.name AS country, local_name, l.name AS language, percent
+-- countries on the left (alias as c)
+FROM countries AS c
+-- appropriate join with languages (as l) on the right
+left JOIN languages as l
+-- give fields to match on
+ON c.code = l.code
+-- sort by descending country name
+ORDER BY country desc;
+```
+
+Notice that the INNER JOIN version resulted in 914 records. The LEFT JOIN version returned 921 rows.
+
+Left join (3)
+
+You'll now revisit the use of the AVG() function introduced in our Intro to SQL for Data Science course. You will use it in combination with left join to determine the average gross domestic product (GDP) per capita by region in 2010.
+
+
+```{sql connection=con_postgres}
+-- select name, region, and gdp_percapita
+SELECT name, region, gdp_percapita
+-- from countries (alias c) on the left
+FROM countries AS c
+-- left join with economies (alias e)
+LEFT JOIN economies AS e
+-- match on code fields
+ON c.code = e.code
+-- focus on 2010 entries
+WHERE year = 2010;
+```
+
+```{sql connection=con_postgres}
+-- select name, region, and gdp_percapita
+SELECT region, avg(gdp_percapita) as avg_gdp
+-- from countries (alias c) on the left
+FROM countries AS c
+-- left join with economies (alias e)
+LEFT JOIN economies AS e
+-- match on code fields
+ON c.code = e.code
+-- focus on 2010 entries
+WHERE year = 2010
+group by region;
+```
+
+```{sql connection=con_postgres}
+-- Select region, average gdp_percapita (alias avg_gdp)
+SELECT region, avg(gdp_percapita) as avg_gdp
+-- From countries (alias c) on the left
+FROM countries AS c
+-- Join with economies (alias e)
+LEFT JOIN economies AS e
+-- Match on code fields
+ON c.code = e.code
+-- Focus on 2010 
+WHERE year = 2010
+-- Group by region
+group by region
+-- Order by avg_gdp, descending
+ORDER BY avg_gdp desc;
+```
+
+Notice how gradually you're adding more and more building blocks to your SQL vocabulary. This enables you to answer questions of ever-increasing complexity!
+
+Right join
+
+Right joins aren't as common as left joins. One reason why is that you can always write a right join as a left join.
+
+```{sql connection=con_postgres}
+-- convert this code to use RIGHT JOINs instead of LEFT JOINs
+/*
+SELECT cities.name AS city, urbanarea_pop, countries.name AS country,
+       indep_year, languages.name AS language, percent
+FROM cities
+LEFT JOIN countries
+ON cities.country_code = countries.code
+LEFT JOIN languages
+ON countries.code = languages.code
+ORDER BY city, language;
+*/
+
+SELECT cities.name AS city, urbanarea_pop, countries.name AS country,
+       indep_year, languages.name AS language, percent
+FROM languages
+RIGHT JOIN countries
+ON countries.code = languages.code
+RIGHT JOIN cities
+ON cities.country_code = countries.code
+ORDER BY city, language;
+```
+everything should be reversed!
+
+Full join
+
+In this exercise, you'll examine how your results differ when using a full join versus using a left join versus using an inner join with the countries and currencies tables.
+
+You will focus on the North American region and also where the name of the country is missing. Dig in to see what we mean!
+
+Begin with a full join with countries on the left and currencies on the right. The fields of interest have been SELECTed for you throughout this exercise.
+
+Then complete a similar left join and conclude with an inner join.
+
+```{sql connection=con_postgres}
+SELECT name AS country, code, region, basic_unit
+FROM countries
+FULL JOIN currencies
+USING (code)
+WHERE region = 'North America' OR region IS NULL
+ORDER BY region;
+```
+
+```{sql connection=con_postgres}
+SELECT name AS country, code, region, basic_unit
+FROM countries
+left JOIN currencies
+USING (code)
+WHERE region = 'North America' OR region IS NULL
+ORDER BY region;
+```
+
+
+```{sql connection=con_postgres}
+SELECT name AS country, code, region, basic_unit
+FROM countries
+inner JOIN currencies
+USING (code)
+WHERE region = 'North America' OR region IS NULL
+ORDER BY region;
+```
+
+Have you kept an eye out on the different numbers of records these queries returned? The FULL JOIN query returned 17 rows, the OUTER JOIN returned 4 rows, and the INNER JOIN only returned 3 rows. Do these results make sense to you?
+
+Full join (2)
+
+You'll now investigate a similar exercise to the last one, but this time focused on using a table with more records on the left than the right. You'll work with the languages and countries tables.
+
+Begin with a full join with languages on the left and countries on the right. Appropriate fields have been selected for you again here.
+
+```{sql connection=con_postgres}
+SELECT countries.name, code, languages.name AS language
+FROM languages
+full JOIN countries
+USING (code)
+WHERE countries.name LIKE 'V%' OR countries.name IS NULL
+ORDER BY countries.name;
+```
+
+```{sql connection=con_postgres}
+SELECT countries.name, code, languages.name AS language
+FROM languages
+left JOIN countries
+USING (code)
+WHERE countries.name LIKE 'V%' OR countries.name IS NULL
+ORDER BY countries.name;
+```
+
+```{sql connection=con_postgres}
+SELECT countries.name, code, languages.name AS language
+FROM languages
+inner JOIN countries
+USING (code)
+WHERE countries.name LIKE 'V%' OR countries.name IS NULL
+ORDER BY countries.name;
+```
+
+Again, make sure to compare the number of records the different types of joins return and try to verify whether the results make sense.
+
+Full join (3)
+
+You'll now explore using two consecutive full joins on the three tables you worked with in the previous two exercises.
+
+
+```{sql connection=con_postgres}
+SELECT c.name AS country, region, l.name AS language,
+       basic_unit, frac_unit
+FROM countries AS c
+FULL JOIN languages AS l
+USING (code)
+FULL JOIN currencies AS c2
+USING (code)
+WHERE region LIKE 'M%esia';
+```
+
+A table of two cities
+
+This exercise looks to explore languages potentially and most frequently spoken in the cities of Hyderabad, India and Hyderabad, Pakistan.
+
+You will begin with a cross join with cities AS c on the left and languages AS l on the right. Then you will modify the query using an inner join in the next tab.
+
+```{sql connection=con_postgres}
+SELECT c.name AS city, l.name AS language
+FROM cities AS c        
+cross JOIN languages AS l
+-- ON c.country_code = l.code
+WHERE c.name LIKE 'Hyder%';
+```
+
+```{sql connection=con_postgres}
+SELECT c.name AS city, l.name AS language
+FROM cities AS c        
+inner JOIN languages AS l
+ON c.country_code = l.code
+WHERE c.name LIKE 'Hyder%';
+```
+
+Can you see the difference between a CROSS JOIN and a INNER JOIN?
+
+
+```{sql connection=con_postgres}
+select c.name as country, region, p.life_expectancy as life_exp
+from countries as c
+left join populations as p 
+on c.code = p.country_code
+where year = 2010
+order by life_exp
+limit 5;
+```
+
+This was the last exercise of this chapter on outer joins and cross joins. In the next chapter, you'll learn about set theory clauses!
+
+
+3) Set theory clauses <--------------------------------------
+In this chapter, you'll learn more about set theory using Venn diagrams and you will be introduced to union, union all, intersect, and except clauses. You'll finish by investigating semi-joins and anti-joins, which provide a nice introduction to subqueries. 
+
+Union
+
+Near query result to the right, you will see two new tables with names economies2010 and economies2015.
+
+
+```{sql connection=con_postgres}
+-- pick specified columns from 2010 table
+select * from economies2010;
+-- 2010 table will be on top
+select * from economies2010
+-- which set theory clause?
+union
+-- pick specified columns from 2015 table
+select * from economies2015
+-- 2015 table on the bottom
+
+-- order accordingly
+order by code, year;
+```
+
+Union (2)
+
+UNION can also be used to determine all occurrences of a field across multiple tables. Try out this exercise with no starter code
+
+```{sql connection=con_postgres}
+select country_code from cities
+union 
+select code from currencies
+order by country_code;
+```
+
+Union all
+
+As you saw, duplicates were removed from the previous two exercises by using UNION.
+
+To include duplicates, you can use UNION ALL.
+```{sql connection=con_postgres}
+SELECT code, year
+FROM economies
+union all
+SELECT country_code, year
+FROM populations
+ORDER BY code, year;
+```
+
+
+Example from lecture
+```{sql connection=con_postgres}
+select country
+from prime_ministers
+intersect
+select country
+from presidents;
+```
+
+Example from lecture
+```{sql connection=con_postgres}
+select country, prime_minister as leader
+from prime_ministers
+intersect
+select country, president
+from presidents;
+```
+
+INTERSECT looks for records in common, not key fields like join
+
+Intersect
+
+Repeat the previous UNION ALL exercise, this time looking at the records in common for country code and year for the economies and populations tables.
+
+```{sql connection=con_postgres}
+SELECT code, year
+FROM economies
+intersect
+SELECT country_code, year
+FROM populations
+ORDER BY code, year;
+```
+
+Intersect (2)
+
+As you think about major world cities and their corresponding country, you may ask which countries also have a city with the same name as their country name?
+
+```{sql connection=con_postgres}
+SELECT name
+FROM countries
+intersect
+SELECT name
+FROM cities;
+```
+Notice how easily you can answer rather complex questions!
+
+Except
+
+Get the names of cities in cities which are not noted as capital cities in countries as a single field result.
+
+Note that there are some countries in the world that are not included in the countries table, which will result in some cities not being labeled as capital cities when in fact they are.
+
+```{sql connection=con_postgres}
+SELECT name
+FROM cities
+except
+SELECT capital
+FROM countries
+order by name;
+```
+
+
+Except (2)
+
+Now you will complete the previous query in reverse!
+
+Determine the names of capital cities that are not listed in the cities table.
+```{sql connection=con_postgres}
+SELECT capital
+FROM countries
+except
+SELECT name
+FROM cities
+order by capital;
+```
+
+Is this query surprising, as the instructions suggested?
+
+Use Right table to determine returned values, semi and anti joins
+
+Semi-join
+
+You are now going to use the concept of a semi-join to identify languages spoken in the Middle East.
+
+```{sql connection=con_postgres}
+SELECT code
+FROM countries
+WHERE region = 'Middle East';
+```
+
+```{sql connection=con_postgres}
+/*
+SELECT code
+FROM countries
+WHERE region = 'Middle East';
+*/
+select distinct name from languages order by name;
+```
+
+```{sql connection=con_postgres}
+/*
+SELECT code
+FROM countries
+WHERE region = 'Middle East';
+*/
+select distinct name from languages 
+where code in (SELECT code
+FROM countries
+WHERE region = 'Middle East')
+order by name;
+```
+
+Relating semi-join to a tweaked inner join
+
+Let's revisit the code from the previous exercise. Sometimes problems solved with semi-joins can also be solved using an inner join.
+
+What is missing from the code at the bottom of the editor to get it to match with the correct answer produced by the commented out code at the top of the editor, which retrieves languages spoken in the Middle East?
+
+```{sql connection=con_postgres}
+-- Previous exercise
+/*
+SELECT DISTINCT name
+FROM languages
+WHERE code IN
+  (SELECT code
+   FROM countries
+   WHERE region = 'Middle East')
+ORDER BY name;
+*/
+
+SELECT languages.name AS language -- needs distinct to match prior code
+FROM languages
+INNER JOIN countries
+ON languages.code = countries.code
+WHERE region = 'Middle East'
+ORDER BY language;
+```
+
+```{sql connection=con_postgres}
+SELECT distinct languages.name AS language -- needs distinct to match prior code
+FROM languages
+INNER JOIN countries
+ON languages.code = countries.code
+WHERE region = 'Middle East'
+ORDER BY language;
+```
+
+Diagnosing problems using anti-join
+
+Another powerful join in SQL is the anti-join. It is particularly useful in identifying which records are causing an incorrect number of records to appear in join queries.
+
+You will also see another example of a subquery here, as you saw in the first exercise on semi-joins. Your goal is to identify the currencies used in Oceanian countries!
+
+Begin by determining the number of countries in countries that are listed in Oceania using SELECT, FROM, and WHERE.
+```{sql connection=con_postgres}
+select count(*) from countries where continent = 'Oceania';
+```
+
+Diagnosing problems using anti-join
+
+Another powerful join in SQL is the anti-join. It is particularly useful in identifying which records are causing an incorrect number of records to appear in join queries.
+
+You will also see another example of a subquery here, as you saw in the first exercise on semi-joins. Your goal is to identify the currencies used in Oceanian countries!
+
+
+```{sql connection=con_postgres}
+select code, c1.name, basic_unit as currency 
+from countries c1 
+inner join currencies c2 using (code)
+where c1.continent = 'Oceania';
+```
+
+```{sql connection=con_postgres}
+SELECT code, name
+FROM countries
+WHERE continent = 'Oceania'
+  AND code NOT IN
+  (SELECT code
+   FROM currencies);
+```
+
+Can you tell which countries were not included now?
+
+Set theory challenge
+
+Congratulations! You've now made your way to the challenge problem for this third chapter. Your task here will be to incorporate two of UNION/UNION ALL/INTERSECT/EXCEPT to solve a challenge involving three tables.
+
+In addition, you will use a subquery as you have in the last two exercises! This will be great practice as you hop into subqueries more in Chapter 4!
+
+
+```{sql connection=con_postgres}
+select c1.name
+-- alias the table where city name resides
+from cities AS c1
+-- choose only records matching the result of multiple set theory clauses
+WHERE c1.country_code IN
+(
+    -- select appropriate field from economies AS e
+    SELECT e.code
+    FROM economies AS e
+    -- get all additional (unique) values of the field from currencies AS c2  
+    union
+    SELECT c2.code
+    FROM currencies AS c2
+    -- exclude those appearing in populations AS p
+    except
+    SELECT p.country_code
+    FROM populations AS p
+);
+```
+
+4) Subqueries <--------------------------------------
+In this closing chapter, you'll learn how to use nested queries to add some finesse to your data insights. You'll also wrap all of the content covered throughout this course into solving three challenge problems. 
+
+Subquery inside where
+
+You'll now try to figure out which countries had high average life expectancies (at the country level) in 2015.
+
+```{sql connection=con_postgres}
+select avg(life_expectancy)
+from populations
+where year = 2015;
+```
+
+```{sql connection=con_postgres}
+SELECT *
+FROM populations
+WHERE life_expectancy >
+  1.15 * (SELECT avg(life_expectancy)
+   FROM populations
+   WHERE year = 2015) AND
+  year = 2015;
+```
+Let's see how you do on a more high-level question in one go.
+
+Subquery inside where (2)
+
+Use your knowledge of subqueries in WHERE to get the urban area population for only capital cities.
+```{sql connection=con_postgres}
+-- select the appropriate fields
+select  name, country_code, urbanarea_pop
+-- from the cities table
+from  cities
+-- with city name in the field of capital cities
+where name IN
+  (select  capital
+   from  countries)
+ORDER BY urbanarea_pop DESC;
+```
+You've got some practice on subqueries inside WHERE now. Time to see how you do when these subqueries are in the SELECT statement!
+
+Subquery inside select
+
+In this exercise, you'll see how some queries can be written using either a join or a subquery.
+
+You have seen previously how to use GROUP BY with aggregate functions and an inner join to get summarized information from multiple tables.
+
+The code given in query.sql selects the top nine countries in terms of number of cities appearing in the cities table. Recall that this corresponds to the most populous cities in the world. Your task will be to convert the commented out code to get the same result as the code shown.
+```{sql connection=con_postgres}
+SELECT countries.name AS country, COUNT(*) AS cities_num
+FROM cities
+INNER JOIN countries
+ON countries.code = cities.country_code
+GROUP BY country
+ORDER BY cities_num DESC, country
+LIMIT 9;
+
+/* 
+SELECT ___ AS ___,
+  (SELECT ___
+   FROM ___
+   WHERE countries.code = cities.country_code) AS cities_num
+FROM ___
+ORDER BY ___ ___, ___
+LIMIT 9;
+*/
+```
+
+```{sql connection=con_postgres}
+SELECT countries.name AS country,
+  (SELECT count(*)
+   FROM cities
+   WHERE countries.code = cities.country_code) AS cities_num
+FROM countries
+ORDER BY cities_num DESC, country
+LIMIT 9;
+```
+
+
+Subquery inside FROM clause
+
+Subquery inside from
+
+The last type of subquery you will work with is one inside of FROM.
+
+You will use this to determine the number of languages spoken for each country, identified by the country's local name! (Note this may be different than the name field and is stored in the local_name field.)
+
+
+```{sql connection=con_postgres}
+select code, count(*) as lang_num
+from languages
+group by code;
+```
+
+```{sql connection=con_postgres}
+select code
+from languages, (select count(*) from languages group by code) as subquery
+```
+
+```{sql connection=con_postgres}
+SELECT local_name, subquery.lang_num
+FROM countries,
+  (SELECT code, COUNT(*) AS lang_num
+   FROM languages
+   GROUP BY code) AS subquery
+WHERE countries.code = subquery.code
+ORDER BY lang_num DESC;
+```
+
+Advanced subquery
+
+You can also nest multiple subqueries to answer even more specific questions.
+
+In this exercise, for each of the six continents listed in 2015, you'll identify which country had the maximum inflation rate (and how high it was) using multiple subqueries. The table result of your query in Task 3 should look something like the following, where anything between < > will be filled in with appropriate values:
+
++------------+---------------+-------------------+
+| name       | continent     | inflation_rate    |
+|------------+---------------+-------------------|
+| <country1> | North America | <max_inflation1>  |
+| <country2> | Africa        | <max_inflation2>  |
+| <country3> | Oceania       | <max_inflation3>  |
+| <country4> | Europe        | <max_inflation4>  |
+| <country5> | South America | <max_inflation5>  |
+| <country6> | Asia          | <max_inflation6>  |
++------------+---------------+-------------------+
+
+Again, there are multiple ways to get to this solution using only joins, but the focus here is on showing you an introduction into advanced subqueries.
+
+```{sql connection=con_postgres}
+select  name, continent, inflation_rate
+from countries
+join economies on economies.code = countries.code
+where economies.year = 2015
+
+```
+
+
+```{sql connection=con_postgres}
+SELECT name, continent, inflation_rate
+FROM countries
+INNER JOIN economies
+ON countries.code = economies.code
+WHERE year = 2015
+    AND inflation_rate IN (
+        SELECT MAX(inflation_rate) AS max_inf
+        FROM (
+             SELECT name, continent, inflation_rate
+             FROM countries
+             INNER JOIN economies
+             ON countries.code = economies.code
+             WHERE year = 2015) AS subquery
+        GROUP BY continent);
+```
+
+```{sql connection=con_postgres}
+SELECT code, inflation_rate, unemployment_rate
+FROM economies
+WHERE year = 2015 AND code NOT IN
+  (SELECT code
+   FROM countries
+   WHERE (gov_form = 'Constitutional Monarchy' OR gov_form LIKE '%Republic%'))
+ORDER BY inflation_rate;
+```
+
+Final challenge
+
+Welcome to the end of the course! The next three exercises will test your knowledge of the content covered in this course and apply many of the ideas you've seen to difficult problems. Good luck!
+
+Read carefully over the instructions and solve them step-by-step, thinking about how the different clauses work together.
+
+In this exercise, you'll need to get the country names and other 2015 data in the economies table and the countries table for Central American countries with an official language.
+
+```{sql connection=con_postgres}
+SELECT DISTINCT c.name, total_investment, imports
+FROM countries AS c
+LEFT JOIN economies AS e
+ON (c.code = e.code
+  AND c.code IN (
+    SELECT l.code
+    FROM languages  AS l
+    WHERE official  = 'true'
+  ) )
+WHERE year = 2015 AND region = 'Central America'
+ORDER BY name;
+```
+
+
+```{sql connection=con_postgres}
+-- choose fields
+SELECT region, continent, avg(fertility_rate) AS avg_fert_rate
+-- left table
+FROM populations AS p
+-- right table
+INNER JOIN countries AS c
+-- join conditions
+ON country_code = code
+-- specific records matching a condition
+WHERE year = 2015
+-- aggregated for each what?
+GROUP BY region, continent
+-- how should we sort?
+ORDER BY avg_fert_rate;
+```
+
+Interesting. It seems that the average fertility rate is lowest in Southern Europe and highest in Central Africa. Two down, one to go!
+
+Final challenge (3)
+
+Welcome to the last challenge problem. By now you're a query warrior! Remember that these challenges are designed to take you to the limit to solidify your SQL knowledge! Take a deep breath and solve this step-by-step.
+
+You are now tasked with determining the top 10 capital cities in Europe and the Americas in terms of a calculated percentage using city_proper_pop and metroarea_pop in cities.
+
+```{sql connection=con_postgres}
+SELECT name, country_code, city_proper_pop, metroarea_pop,  
+      city_proper_pop / metroarea_pop * 100 AS city_perc
+FROM cities
+WHERE name IN
+  (SELECT capital
+   FROM countries
+   WHERE (continent = 'Europe'
+      OR continent LIKE '%America'))
+     AND metroarea_pop IS NOT NULL
+ORDER BY city_perc desc
+limit 10;
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

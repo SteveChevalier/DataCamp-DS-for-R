@@ -1,0 +1,368 @@
+---
+title: "Introduction to Data notes"
+author: "Steve Chevalier"
+date: "September 19, 2018"
+output: html_document
+---
+## Introduction to Data
+
+**Language of data --------------------**
+
+High School and Beyond data
+Note; Code examples here are from lessons but can't run in local R
+
+```{r}
+#Load package
+library(openintro);library(dplyr)
+#Load data
+data(hsb2)
+glimpse(hsb2)
+```
+
+In this exercise, we'll practice on another dataset, email50, which contains a subset of incoming emails for the first three months of 2012 for a single email account. We'll examine the structure of this dataset and determine the number of rows (observations) and columns (variables).
+
+```{r}
+  #Load data
+  data(email50)
+  #View the structure of the data
+  str(email50)
+```
+
+        Filtering based on a factor
+
+Categorical data are often stored as factors in R. In this exercise, we'll practice working with a factor variable, number, from the email50 dataset. This variable tells us what type of number (none, small, or big) an email contains.
+
+Recall from the video that the filter() function from dplyr can be used to filter a dataset to create a subset containing only certain levels of a variable. For example, the following code filters the mtcars dataset for cars containing 6 cylinders:
+    
+```{r}
+    #Subset of emails with big numbers: email50_big
+    email50_big <- email50 %>%
+      filter(number == "big")
+    #Glimpse the subset
+    glimpse(email50_big)
+```
+
+        Complete filtering based on a factor
+The droplevels() function removes unused levels of factor variables from our dataset. As we saw in the video, it's often useful to determine which levels are unused (i.e. contain zero values) with the table() function.
+
+```{r}
+    #Table of the number variable
+    table(email50_big$number)
+    # Drop levels
+    email50_big$number <- droplevels(email50_big$number)
+    # Another table of the number variable
+    table(email50_big$number)
+```
+
+        Discretize a different variable
+In this exercise, we'll create a categorical version of the num_char variable in the email50 dataset.
+
+```{r}
+    #Calculate median number of characters: med_num_char
+    med_num_char <- median(email50$num_char)
+    # Create num_char_cat variable in email50
+    email50_fortified <- email50 %>%
+      mutate(num_char_cat = ifelse(num_char < med_num_char, "below median", "at or above median"))
+    # Count emails in each category
+    email50_fortified %>%
+      count(num_char_cat)
+```
+        Combining levels of a different factor
+Another common way of creating a new variable based on an existing one is by combining levels of a categorical variable
+
+```{r}
+    # Create number_yn column in email50
+    email50_fortified <- email50 %>%
+      mutate(number_yn = case_when(
+        number == "none" ~ "no", # if number is "none", make number_yn "no"
+        number != "none" ~ "yes"  # if number is not "none", make number_yn "yes"
+        )
+      )
+    # Visualize number_yn
+    ggplot(email50_fortified, aes(x = number_yn)) +
+      geom_bar()
+```
+  
+        Visualizing numerical and categorical data
+In this exercise, we'll visualize the relationship between two numerical variables from the email50 dataset, conditioned on whether or not the email was spam. This means that we will use an aspect of the plot (like color or shape) to identify the levels in the spam variable so that we can compare plotted values between them.
+
+```{r}
+    # Load ggplot2
+    library(ggplot2)
+    # Scatterplot of exclaim_mess vs. num_char
+    ggplot(email50, aes(x = num_char, y = exclaim_mess, color = factor(spam))) +
+      geom_point()
+```
+
+```{r}
+# Language of data --------------------**
+# code here can run in local R
+library(dplyr);library(ggplot2)
+mtcars %>% filter(cyl == 6)
+```
+
+**Study types and cautionary tales -------------------**
+
+Notes from intro video -----------------
+
+observation study; Collect data in a way that does not directly interfere with how the data arise; Only corralation can be inferred
+Experiment; Randomly assign subjexts to various treatments; causation can be inferred
+
+Random sampling or random assignment?
+One of the early studies linking smoking and lung cancer compared patients who are already hospitalized with lung cancer to similar patients without lung cancer (hospitalized for other reasons), and recorded whether each patient smoked. Then, proportions of smokers for patients with and without lung cancer were compared.
+
+Does this study employ random sampling and/or random assignment?
+Right! Random assignment is not employed because the conditions are not imposed on the patients by the people conducting the study; random sampling is not employed because the study records the patients who are already hospitalized, so it wouldn't be appropriate to apply the findings back to the population as a whole
+
+Identify the scope of inference of study
+Volunteers were recruited to participate in a study where they were asked to type 40 bits of trivia—for example, "an ostrich’s eye is bigger than its brain"—into a computer. A randomly selected half of these subjects were told the information would be saved in the computer; the other half were told the items they typed would be erased.
+
+Then, the subjects were asked to remember these bits of trivia, and the number of bits of trivia each subject could correctly recall were recorded. It was found that the subjects were significantly more likely to remember information if they thought they would not be able to find it later.
+
+The results of the study ___ be generalized to all people and a causal link between believing information is stored and memory ___ be inferred based on these results.
+
+There is no random sampling since the subjects of the study were volunteers, so the results cannot be generalized to all people. However, due to random assignment, we are able to infer a causal link between the belief information is stored and the ability to recall that same information.
+
+
+```{r}
+#Study types and cautionary tales
+# done locally; install.packages("gapminder")
+library(dplyr);library(gapminder)
+```
+
+Identify type of study: Countries
+Next, let's take a look at data from a different study on country characteristics. First, load the data and view it, then identify the type of study. Remember, an experiment requires random assignment.
+
+
+```{r}
+glimpse(gapminder)
+```
+
+Number of males and females admitted
+
+The goal of this exercise is to determine the numbers of male and female applicants who got admitted and rejected. Specifically, we want to find out how many males are admitted and how many are rejected. And similarly we want to find how many females are admitted and how many are rejected.
+
+
+    #Load packages
+    library(dplyr)
+    head(ucb_admit)
+    #Count number of male and female applicants admitted
+    ucb_admit %>%
+      count(Gender,Admit)
+
+
+Proportion of males admitted overall
+
+Next we'll calculate the percentage of males and percentage of females admitted, by creating a new variable, called prop (short for proportion) based off of the counts calculated in the previous exercise and using the mutate() from the dplyr package. Proportions for each row of the data frame we created in the previous exercise can be calculated as n / sum(n). Note that since the data are grouped by gender, sum(n) will be calculated for males and females separately.
+
+    ucb_admission_counts %>%
+      #Group by gender
+      group_by(Gender) %>%
+      #Create new variable
+      mutate(prop = n / sum(n)) %>%
+      #Filter for admitted
+      filter(Admit == "Admitted")
+
+
+Exercise
+Proportion of males admitted for each department
+
+Finally we'll make a table similar to the one we constructed earlier, except we'll first group the data by department. **e goal is to compare the proportions of male admitted students across departments.**
+
+Proportions for each row of the data frame we create can be calculated as n / sum(n). Note that since the data are grouped by department and gender, sum(n) will be calculated for males and females separately for each department.
+
+    > ucb_admission_counts
+    #A tibble: 4,526 x 3
+    #Groups:   Dept, Gender [12]
+       Admit    Gender Dept 
+     * <fct>    <fct>  <chr>
+     1 Admitted Male   A    
+     2 Admitted Male   A    
+     3 Admitted Male   A    
+     4 Admitted Male   A    
+     5 Admitted Male   A    
+     6 Admitted Male   A    
+     7 Admitted Male   A    
+     8 Admitted Male   A    
+     9 Admitted Male   A    
+    10 Admitted Male   A    
+    # ... with 4,516 more rows
+
+    ucb_admission_counts  %>%
+      #Group by department, then gender
+      group_by(Dept, Gender) %>%
+      #Create new variable
+      mutate(prop = n / sum(n)) %>%
+      #Filter for male and admitted
+      filter(Gender == "Male", Admit == "Admitted")
+  
+    #A tibble: 6 x 5
+    #Groups:   Dept, Gender [6]
+      Dept  Gender Admit        n   prop
+      <chr> <fct>  <fct>    <int>  <dbl>
+    1 A     Male   Admitted   512 0.621 
+    2 B     Male   Admitted   353 0.630 
+    3 C     Male   Admitted   120 0.369 
+    4 D     Male   Admitted   138 0.331 
+    5 E     Male   Admitted    53 0.277 
+    6 F     Male   Admitted    22 0.0590  
+
+```{r}
+# observational data example
+# install.packages("gapminder") done on local R
+library(gapminder); head(gapminder)
+```
+
+**Sampling strategies and experimental design ----------**
+
+Sampling strategies video notes
+Sampling a population is like tasting soup to see if it's salty enough.
+
+Simple sample; select randomly from an entire population
+Stratified sample; select randomly from stratified groups of the populatino
+Cluster sample; select randomly from a sample of clusters
+Multistage sample; randomly select observations from selected clusters
+
+
+Sampling strategies;
+A consulting company is planning a pilot study on marketing in Boston. They identify the zip codes that make up the greater Boston area, then sample 50 randomly selected addresses from each zip code and mail a coupon to these addresses. They then track whether the coupon was used in the following month.
+
+What sampling strategy has this company used? startified sample
+
+Sampling strategies, choose worst
+
+A school district has requested a survey be conducted on the socioeconomic status of their students. Their budget only allows them to conduct the survey in some of the schools, hence they need to first sample a few schools.
+
+Students living in this district generally attend a school in their neighborhood. The district is broken into many distinct and unique neighborhoods, some including large single-family homes and others with only low-income housing.
+
+Which approach would likely be the **least effective** for selecting the schools where the survey will be conducted? 
+  Simple random sampling
+  Stratified sampling, where each stratum is a neighborhood
+  --->Cluster sampling, where each cluster is a neighborhood
+  
+This sampling strategy would be a bad idea because each neighborhood has a unique socioeconomic status. A good study would collect information about every neighborhood.
+
+```{r}
+#Sampling strategies and experimental design
+# done locally; install.packages("openintro")
+library(openintro);library(dplyr)
+data("county")
+county_noDC <- county %>%
+  filter(state != "District of Columbia") %>%
+  droplevels()
+county_srs <- county_noDC %>%
+  sample_n(size = 150)
+glimpse(county_srs)
+
+```
+
+
+```{r}
+# State distribution of SRS counties
+county_srs %>%
+  group_by(state) %>%
+  count()
+```
+
+```{r}
+# Stratified sample, sample 3 counties from each state
+county_srs %>%
+  group_by(state) %>%
+  sample_n(size = 3, replace = TRUE)
+```
+
+Simple random sample in R (data not in R)
+
+Suppose we want to collect some data from a sample of eight states. A list of all states and the region they belong to (Northeast, Midwest, South, West) are given in the us_regions data frame.
+
+
+# Simple random sample: states_srs
+states_srs <- us_regions %>%
+  sample_n(size = 8)
+# Count states by region
+states_srs %>%
+  count(region)
+  
+# A tibble: 4 x 2
+  region        n
+  <fct>     <int>
+1 Midwest       2
+2 Northeast     2
+3 South         1
+4 West          3
+
+Stratified sample in R
+
+In the previous exercise, we took a simple random sample of eight states. However, we did not have any control over how many states from each region got sampled. The goal of stratified sampling in this context is to have control over the number of states sampled from each region. Our goal for this exercise is to sample an equal number of states from each region.
+
+# Stratified sample
+states_str <- us_regions %>%
+  group_by(region) %>%
+  sample_n(2)
+
+# Count states by region
+states_str %>%
+  count(region)
+
+Principles of experimental design
+Control: Compare treatment of interest to a control group
+randomize: randomly assign subjects to treatments
+replicate: collect a sufficiently large sample with the study, will replicate the entire study
+block: account for the potential effect of con founding variables
+     group subjects into blocks based on these variables
+     randomize within each block to treatment groups
+     
+
+**Case study -----------------**
+Beauty in the classroom 
+
+
+```{r}
+#Case study; download data and take a look
+#Load data
+# download.file("http://www.openintro.org/stat/data/evals.RData", destfile = "evals.RData")
+# load("evals.RData") note; also stored this in progres d_camp_data schema, local
+head(evals)
+```
+
+```{r}
+glimpse(evals)
+```
+
+
+# Inspect variable types
+glimpse(evals)
+# Remove non-factor variables from the vector below
+cat_vars <- c("rank", "ethnicity", "gender", "language", 
+              "cls_level", "cls_profs", "cls_credits",
+              "pic_outfit", "pic_color")
+              
+```{r}
+# Recode cls_students as cls_type
+evals <- evals %>%
+  mutate(cls_type = case_when(
+    cls_students <= 18 ~ "small",
+    cls_students >= 19 & cls_students <= 59 ~ "midsize",
+    cls_students >= 60 ~ "large"
+    )
+  )
+head(evals$cls_type)
+```
+The cls_type variable is a categorical variable, stored as a character vector. You could have made it a factor variable by wrapping the nested ifelse() statements inside factor()
+
+```{r}
+library(ggplot2)
+# Scatterplot of score vs. bty_avg
+ggplot(evals, aes(x = bty_avg, y=score)) +
+  geom_point()
+```
+
+```{r}
+# Scatterplot of score vs. bty_avg colored by cls_type
+ggplot(evals, aes(x = bty_avg, y = score, color = cls_type)) +
+  geom_point()
+```
+
+
+
+

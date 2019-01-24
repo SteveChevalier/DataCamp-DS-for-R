@@ -1,0 +1,899 @@
+---
+title: "24_Reporting with R Markdown"
+author: "Steve Chevalier"
+date: "October 6, 2018"
+output: html_document
+---
+
+Course Description
+
+Learn how to write a data report quickly and effectively with the R Markdown package, and share your results with your friends, colleagues or the rest of the world. Learn how you can author your own R Markdown reports, and how to automate the reporting process so that you have your own reproducible reports. By the end of the interactive data analysis reporting tutorial, you will be able to generate reports straight from your R code, documenting your work - and its results - as an HTML, pdf, slideshow or Microsoft Word document.
+
+The R Markdown Exercise interface
+
+For this course, DataCamp has developed a new kind of interface that looks like the R Markdown pane in RStudio. You have a space (my_document.Rmd) to write R Markdown documents, as well as the buttons to compile the R Markdown document. To keep things simple, we'll stick with making html and pdf documents, although it is also possible to create Microsoft Word documents with R Markdown.
+
+When you click "Knit HTML", DataCamp will compile your R Markdown document and display the finished, formatted results in a new pane.
+
+To give you a taste of the things you'll learn in this course, we've prepared two documents in the editor on the right:
+
+    my_document.Rmd containing the actual R Markdown code;
+    faded.css, a supplementary file that brands your report.
+
+  faded.css
+    h1{
+      color: white;
+      padding: 10px;
+      background-color: #3399ff
+    }
+    ul {
+      list-style-type: square;
+    }
+    .MathJax_Display {
+      padding: 0.5em;
+      background-color: #eaeff3
+    }
+
+    
+set resides in the `nasaweather` package of the *R* programming language. It contains a collection of atmospheric variables measured between 1995 and 2000 on a grid of 576 coordinates in the western hemisphere. The data set comes from the [2006 ASA Data Expo](http://stat-computing.org/dataexpo/2006/).
+
+* **temp** - The mean monthly air temperature near the surface of the Earth (measured in kelvins (*K*))
+
+You can convert the temperature unit from Kelvin to Celsius with the formula
+
+$$ celsius = kelvin - 273.15 $$
+
+$$ fahrenheit = celsius \times \frac{9}{5} + 32 $$
+
+```{r, echo = FALSE, results = 'hide'}
+example_kelvin <- 282.15
+```
+
+For example, `r example_kelvin` degrees Kelvin corresponds to `r example_kelvin - 273.15` degrees Celsius.
+
+Explore R Markdown
+
+The document to the right is a template R Markdown document. It includes the most familiar parts of an R Markdown document:
+
+    A YAML header that contains some metadata
+    Narrative text written in Markdown
+    R code chunks surrounded by ```{r} and ```; a syntax that comes from the knitr package
+
+```{r}
+summary(mtcars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+Prepare the workspace for preliminary analysis
+
+During this course, we will examine a data set that comes in the nasaweather package. The data set is called atmos, and it contains meteorological data about the western hemisphere.
+
+We'll also use the dplyr package to manipulate our data and the ggvis package to visualize it.
+
+For the next set of exercises, you will use the traditional DataCamp interface: you have an editor where you can write and submit R code, as well as a console where you can experiment with R code without doing a formal submission.
+
+```{r}
+# Load the nasaweather package
+# done install.packages("nasaweather")
+library(nasaweather)
+# Load the dplyr package
+library(dplyr)
+# Load the ggvis package
+library(ggvis)
+```
+
+Now that the workspace is ready for some analysis, head over to the next exercise to prepare your data for the report. Don't forget to consult and read the help page on the atmos data set.
+
+Prepare your data
+
+We will use some of the data in atmos to explore the relationship between ozone and temperature. But before we do, let's transform the data into a more useful form.
+
+The sample code uses dplyr functions to aggregate the data. It computes the mean value of temp, pressure, ozone, cloudlow, cloudmid, and cloudhigh for each latitude/longitude grid point.
+
+You can learn more about dplyr in DataCamp's dplyr course.
+
+Don't get confused by the pipe operator (%>%) from the magrittr package that is used often in combination with dplyr verbs. It is used to chain your code in case there are several operations you want to do without the need to save intermediate results.
+
+```{r}
+# The nasaweather and dplyr packages are available in the workspace
+
+# Set the year variable to 1995
+year <- 1995
+
+means <- atmos %>%
+  filter(year == year) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+
+# Inspect the means variable
+print(means)
+```
+
+Can you see that each combination of latitude and longitude only appears once in means? atmos records multiple values for multiple dates at each location. means only records the mean value of all of the dates for each location. Now that we have the data we'll use, let's visualize it! 
+
+Experiment with plot generation
+
+The sample code on the right uses ggvis functions to visualize the data. It displays a plot of pressure vs. ozone.
+
+We'll use ggvis to create several graphs for our R Markdown reports.
+
+You can learn more about ggvis in DataCamp's ggvis course.
+
+```{r}
+# The nasaweather, dplyr and ggvis packages are loaded in the workspace.
+
+# Code for the previous exercise - do not change this
+means <- atmos %>%
+  filter(year == 1995) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+
+# Change the code to plot the temp variable vs the ozone variable
+means %>%
+  ggvis(x = ~temp, y = ~ozone) %>%
+  layer_points()
+```
+
+Don't worry if you don't understand how the code does what it does in this exercise. For this course, we're just going to focus on how to place a graph in a report. All you need to know is that the code will create a nice graph when you run it. 
+
+Prepare a model component
+
+We've now loaded data, cleaned it, and visualized it. Our analysis will have one more component: a model.
+
+The code on the right creates a linear model that predicts ozone based on pressure and cloudlow; all three are variables of the means data frame you created earlier.
+
+You can learn more about building models with R in DataCamp's Introduction to Statistics course.
+
+```{r}
+# The nasaweather and dplyr packages are already at your disposal
+means <- atmos %>%
+  filter(year == 1995) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+
+# Change the model: base prediction only on temp
+mod <- lm(ozone ~ temp, data = means)
+
+# Generate a model summary and interpret the results
+summary(mod)
+```
+
+You're now in a familiar position: you've done some preliminary analysis, and you're ready to report your findings. Remember what your code does, as you will work with it again soon. In the next video, Garrett will show you how to write the narrative sections of your report in R Markdown. 
+
+Styling narrative sections
+
+You can use Markdown to embed formatting instructions into your text. For example, you can make a word italicized by surrounding it in asterisks, bold by surrounding it in two asterisks, and monospaced (like code) by surrounding it in backticks:
+
+*italics*
+**bold**
+`code`
+
+You can turn a word into a link by surrounding it in hard brackets and then placing the link behind it in parentheses, like this:
+
+[RStudio](www.rstudio.com)
+
+To create titles and headers, use leading hastags. The number of hashtags determines the header's level:
+
+# First level header
+## Second level header
+### Third level header
+
+## Data
+
+The `atmos` data set resides in the `nasaweather` package of the *R* programming language. It contains a collection of atmospheric variables measured between 1995 and 2000 on a grid of 576 coordinates in the western hemisphere. The data set comes from the [2006 ASA Data Expo](http://stat-computing.org/dataexpo/2006/).
+
+Good job! You're learning how to write in Markdown, the syntax language that the R Markdown package uses to create text. Head over to the next exercise to find out how to generate lists in Markdown syntax. 
+
+Lists in R Markdown
+
+To make a bulleted list in Markdown, place each item on a new line after an asterisk and a space, like this:
+
+* item 1
+* item 2
+* item 3
+
+You can make an ordered list by placing each item on a new line after a number followed by a period followed by a space, like this
+
+1. item 1
+2. item 2
+3. item 3
+
+In each case, you need to place a blank line between the list and any paragraphs that come before it.
+
+## Data
+
+The `atmos` data set resides in the `nasaweather` package of the *R* programming language. It contains a collection of atmospheric variables measured between 1995 and 2000 on a grid of 576 coordinates in the western hemisphere. The data set comes from the [2006 ASA Data Expo](http://stat-computing.org/dataexpo/2006/).
+
+Some of the variables in the `atmos` data set are: (nynote; the blank line below is required)
+
+* **temp** - The mean monthly air temperature near the surface of the Earth (measured in kelvins (*K*))
+* **pressure** - The mean monthly air pressure at the surface of the Earth (measured in millibars (*mb*))
+* **ozone** - The mean monthly abundance of atmospheric ozone (measured in Dobson units (*DU*))
+
+LaTeX equations
+
+You can also use the Markdown syntax to embed latex math equations into your reports. To embed an equation in its own centered equation block, surround the equation with two pairs of dollar signs like this,
+
+$$1 + 1 = 2$$
+
+To embed an equation inline, surround it with a single pair of dollar signs, like this: $1 + 1 = 2$.
+
+You can use all of the standard latex math symbols to create attractive equations.
+
+## Data
+
+The `atmos` data set resides in the `nasaweather` package of the *R* programming language. It contains a collection of atmospheric variables measured between 1995 and 2000 on a grid of 576 coordinates in the western hemisphere. The data set comes from the [2006 ASA Data Expo](http://stat-computing.org/dataexpo/2006/).
+
+Some of the variables in the `atmos` data set are:
+
+* **temp** - The mean monthly air temperature near the surface of the Earth (measured in kelvins (*K*))
+
+* **pressure** - The mean monthly air pressure at the surface of the Earth (measured in millibars (*mb*))
+
+* **ozone** - The mean monthly abundance of atmospheric ozone (measured in Dobson units (*DU*))
+
+You can convert the temperature unit from Kelvin to Celsius with the formula
+
+$$ celsius = kelvin - 273.15$$
+
+And you can convert the result to Fahrenheit with the formula
+
+$$ fahrenheit = celsius \times \frac{9}{5} + 32 $$
+
+You're getting the hang of this! You've also written a useful introduction to your report. In the next video, you'll learn how to embed R code into your report. This gives you the best of both worlds: formatted text for narration, and precise R code for reproducible analysis. 
+
+Embedding Code <----------------------
+
+R code chunks
+
+You can embed R code into your R Markdown report with the knitr syntax. To do this, surround your code with two lines: one that contains ```{r} and one that contains ```. The result is a code chunk that looks like this:
+
+```{r}
+# some code
+```
+
+When you render the report, R will execute the code. If the code returns any results, R will add them to your report.
+
+## Cleaning
+
+For the remainder of the report, we will look only at data from the year 1995. We aggregate our data by location, using the *R* code below.
+
+```{r}
+library(nasaweather)
+library(dplyr)
+
+year <- 1995
+
+means <- atmos %>%
+  filter(year == year) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+Notice that this code does not display any results. It simply saves means so we can use it later. Did you notice that we included library(nasaweather) and library(dplyr) to be rerun in the last exercise? Each R Markdown document is given a fresh, empty R session to run its code chunks in. This means that you will need to define any R objects that this document uses - and load any packages that it uses - inside the same R Markdown document. The document won't have access to the objects that exist in your current R session. 
+
+Customize R code chunks
+
+You can customize each R code chunk in your report by providing optional arguments after the r in ```{r}, which appears at the start of the code chunk. Let's look at one set of options.
+
+R functions sometimes return messages, warnings, and even error messages. By default, R Markdown will include these messages in your report. You can use the message, warning and error options to prevent R Markdown from displaying these. If any of the options are set to FALSE R Markdown will not include the corresponding type of message in the output.
+
+For example, R Markdown would ignore any errors or warnings generated by the chunk below.
+
+```{r warning = FALSE, error = FALSE}
+"four" + "five"
+```
+
+## Cleaning
+
+For the remainder of the report, we will look only at data from the year 1995. We aggregate our data by location, using the *R* code below.
+
+```{r message  = FALSE}
+library(nasaweather)
+library(dplyr)
+library(ggvis)
+```
+
+```{r}
+year <- 1995
+
+means <- atmos %>%
+  filter(year == year) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+Notice that splitting your code in different chunks does not change anything about the availability of the results. Although the library() functions have been executed in another chunk, the packages are still available in the next chunk. 
+
+Popular chunk options
+
+Three of the most popular chunk options are echo, eval and results.
+
+If echo = FALSE, R Markdown will not display the code in the final document (but it will still run the code and display its results unless told otherwise).
+
+If eval = FALSE, R Markdown will not run the code or include its results, (but it will still display the code unless told otherwise).
+
+If results = 'hide', R Markdown will not display the results of the code (but it will still run the code and display the code itself unless told otherwise).
+
+## Data
+
+The `atmos` data set resides in the `nasaweather` package of the *R* programming language. It contains a collection of atmospheric variables measured between 1995 and 2000 on a grid of 576 coordinates in the western hemisphere. The data set comes from the [2006 ASA Data Expo](http://stat-computing.org/dataexpo/2006/).
+
+Some of the variables in the `atmos` data set are:
+
+* **temp** - The mean monthly air temperature near the surface of the Earth (measured in kelvins (*K*))
+
+* **pressure** - The mean monthly air pressure at the surface of the Earth (measured in millibars (*mb*))
+
+* **ozone** - The mean monthly abundance of atmospheric ozone (measured in Dobson units (*DU*))
+
+You can convert the temperature unit from Kelvin to Celsius with the formula
+
+$$ celsius = kelvin - 273.15 $$
+
+And you can convert the result to Fahrenheit with the formula
+
+$$ fahrenheit = celsius \times \frac{9}{5} + 32 $$
+
+## Cleaning
+
+For the remainder of the report, we will look only at data from the year 1995. We aggregate our data by location, using the *R* code below.
+
+```{r message = FALSE}
+load(url("http://assets.datacamp.com/course/rmarkdown/atmos.RData")) # working with a subset
+library(dplyr)
+library(ggvis)
+```
+
+```{r}
+year <- 1995
+means <- atmos %>%
+  filter(year == year) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+## Ozone and temperature
+
+Is the relationship between ozone and temperature useful for understanding fluctuations in ozone? A scatterplot of the variables shows a strong, but unusual relationship.
+
+```{r fig.height = 4, fig.width = 5,  echo = FALSE}
+means %>%
+  ggvis(~temp, ~ozone) %>%
+  layer_points()
+```
+
+We suspect that group level effects are caused by environmental conditions that vary by locale. To test this idea, we sort each data point into one of four geographic regions:
+
+```{r}
+means$locale <- "north america"
+means$locale[means$lat < 10] <- "south pacific"
+means$locale[means$long > -80 & means$lat < 10] <- "south america"
+means$locale[means$long > -80 & means$lat > 10] <- "north atlantic"
+```
+
+### Model
+
+We suggest that ozone is highly correlated with temperature, but that a different relationship exists for each geographic region. We capture this relationship with a second order linear model of the form
+
+$$ ozone = \alpha + \beta_{1} temperature + \sum_{locales} \beta_{i} locale_{i} + \sum_{locales} \beta_{j} interaction_{j} + \epsilon$$
+
+This yields the following coefficients and model lines.
+
+```{r}
+lm(ozone ~ temp + locale + temp:locale, data = means)
+```
+
+```{r fig.height = 4, fig.width = 5, echo = FALSE}
+means %>%
+  group_by(locale) %>%
+  ggvis(~temp, ~ozone) %>%
+  layer_points(fill = ~locale) %>%
+  layer_model_predictions(model = "lm", stroke = ~locale) %>%
+  hide_legend("stroke") %>%
+  scale_nominal("stroke", range = c("darkorange", "darkred", "darkgreen", "darkblue"))
+```
+
+### Diagnostics
+
+An anova test suggests that both locale and the interaction effect of locale and temperature are useful for predicting ozone (i.e., the p-value that compares the full model to the reduced models is statistically significant).
+
+```{r}
+mod <- lm(ozone ~ temp, data = means)
+mod2 <- lm(ozone ~ temp + locale, data = means)
+mod3 <- lm(ozone ~ temp + locale + temp:locale, data = means)
+
+anova(mod, mod2, mod3)
+```
+
+
+Apart from adding code chunks to your report, you can also include inline code. Find out more about it in the next exercise.
+
+Inline R code
+
+You can embed R code into the text of your document with the `r ` syntax. Be sure to include the lower case r in order for this to work properly. R Markdown will run the code and replace it with its result, which should be a piece of text, such as a character string or a number.
+
+For example, the line below uses embedded R code to create a complete sentence:
+
+The factorial of four is `r factorial(4)`.
+
+When you render the document the result will appear as:
+
+The factorial of four is 24.
+
+Inline code provides a useful way to make your reports completely automatable.
+
+---
+output: html_document
+---
+
+## Data
+
+The `atmos` data set resides in the `nasaweather` package of the *R* programming language. It contains a collection of atmospheric variables measured between 1995 and 2000 on a grid of 576 coordinates in the western hemisphere. The data set comes from the [2006 ASA Data Expo](http://stat-computing.org/dataexpo/2006/).
+
+Some of the variables in the `atmos` data set are:
+
+* **temp** - The mean monthly air temperature near the surface of the Earth (measured in kelvins (*K*))
+
+* **pressure** - The mean monthly air pressure at the surface of the Earth (measured in millibars (*mb*))
+
+* **ozone** - The mean monthly abundance of atmospheric ozone (measured in Dobson units (*DU*))
+
+You can convert the temperature unit from Kelvin to Celsius with the formula
+
+$$ celsius = kelvin - 273.15 $$
+
+And you can convert the result to Fahrenheit with the formula
+
+$$ fahrenheit = celsius \times \frac{9}{5} + 32 $$
+
+## Cleaning
+
+```{r echo = FALSE}
+year <- 2000
+```
+
+For the remainder of the report, we will look only at data from the year `r year`. We aggregate our data by location, using the *R* code below.
+
+```{r message = FALSE}
+library(nasaweather)
+library(dplyr)
+library(ggvis)
+```
+
+```{r}
+means <- atmos %>%
+  filter(year == year) %>%
+  group_by(long, lat) %>%
+  summarize(temp = mean(temp, na.rm = TRUE),
+         pressure = mean(pressure, na.rm = TRUE),
+         ozone = mean(ozone, na.rm = TRUE),
+         cloudlow = mean(cloudlow, na.rm = TRUE),
+         cloudmid = mean(cloudmid, na.rm = TRUE),
+         cloudhigh = mean(cloudhigh, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+where the `year` object equals `r year`.
+
+
+## Ozone and temperature
+
+Is the relationship between ozone and temperature useful for understanding fluctuations in ozone? A scatterplot of the variables shows a strong, but unusual relationship.
+
+```{r echo = FALSE, fig.height = 4, fig.width = 5}
+means %>%
+  ggvis(~temp, ~ozone) %>%
+  layer_points()
+```
+
+We suspect that group level effects are caused by environmental conditions that vary by locale. To test this idea, we sort each data point into one of four geographic regions:
+
+```{r}
+means$locale <- "north america"
+means$locale[means$lat < 10] <- "south pacific"
+means$locale[means$long > -80 & means$lat < 10] <- "south america"
+means$locale[means$long > -80 & means$lat > 10] <- "north atlantic"
+```
+
+### Model
+
+We suggest that ozone is highly correlated with temperature, but that a different relationship exists for each geographic region. We capture this relationship with a second order linear model of the form
+
+$$ ozone = \alpha + \beta_{1} temperature + \sum_{locales} \beta_{i} locale_{i} + \sum_{locales} \beta_{j} interaction_{j} + \epsilon$$
+
+This yields the following coefficients and model lines.
+
+```{r}
+lm(ozone ~ temp + locale + temp:locale, data = means)
+```
+
+```{r echo = FALSE, fig.height = 4, fig.width = 5}
+means %>%
+  group_by(locale) %>%
+  ggvis(~temp, ~ozone) %>%
+  layer_points(fill = ~locale) %>%
+  layer_model_predictions(model = "lm", stroke = ~locale) %>%
+  hide_legend("stroke") %>%
+  scale_nominal("stroke", range = c("darkorange", "darkred", "darkgreen", "darkblue"))
+```
+
+### Diagnostics
+
+An anova test suggests that both locale and the interaction effect of locale and temperature are useful for predicting ozone (i.e., the p-value that compares the full model to the reduced models is statistically significant).
+
+```{r}
+mod <- lm(ozone ~ temp, data = means)
+mod2 <- lm(ozone ~ temp + locale, data = means)
+mod3 <- lm(ozone ~ temp + locale + temp:locale, data = means)
+
+anova(mod, mod2, mod3)
+```
+
+Note that you cannot customize inline code the way you can customize code chunks. 
+
+Labeling and reusing code chunks
+
+Apart from the popular code chunk options you have learned by now, you can define even more things in the curly braces that follow the triple backticks.
+
+An interesting feature available in knitr is the labeling of code snippets. The code chunk below would be assigned the label simple_sum:
+
+```{r simple_sum, results = 'hide'}
+2 + 2
+```
+
+However, because the results option is equal to hide, no output is shown. This is what appears in the output document:
+
+2 + 2
+
+What purpose do these labels serve? knitr provides the option ref.label to refer to previously defined and labeled code chunks. If used correctly, knitr will copy the code of the chunk you referred to and repeat it in the current code chunk. This feature enables you to separate R code and R output in the output document, without code duplication.
+
+Let's continue the example; the following code chunk:
+
+```{r ref.label='simple_sum', echo = FALSE}
+```
+
+produces the output you would expect:
+
+ ## [1] 4
+
+Notice that the echo option was explicitly set to FALSE, suppressing the R code that generated the output.
+
+In the sample code on the right, you see a rather large code chunk that contains R code to load packages dplyr and ggvis and functions to create a ggvis graph
+
+## Exploring the mtcars data set
+
+Have you ever wondered whether there is a clear correlation between the gas consumption of a car and its weight?
+To answer this question, we first have to load the `dplyr` and `ggvis` packages. 
+
+```{r message = FALSE}
+library(dplyr)
+library(ggvis)
+```
+
+```{r chained, results = 'hide'}
+mtcars %>%
+  group_by(factor(cyl)) %>%
+  ggvis(~mpg, ~wt, fill = ~cyl) %>%
+  layer_points()
+```
+The `ggvis` plot gives us a nice visualization of the `mtcars` data set:
+
+```{r ref.label='chained', echo=FALSE}
+```
+
+There is a myriad of options available for code chunks, you can discover them at Yihui Xie's website. So far, we have been compiling your R Markdown reports into HTML, but you can also compile your reports into pdf documents, Microsoft word documents, and slideshows. You can also customize the output of your documents. The next video will show you how. 
+
+
+Compiling Reports <--------------------
+Section 5 - Pandoc
+Alternative output formats
+You can render the same R Markdown file into several different formats. There are two ways to change a file's output format.
+
+First, you can click the triangle icon next to "Knit HTML" at the bottom of the pane that displays your R Markdown file. This will open a drop down menu that gives you the choice of rendering as an HTML document or a pdf document.
+
+Second, you can change the output field in the YAML block at the top of your document. For example, this YAML block will create an HTML file:
+
+---
+output: html_document
+---
+This one will create a pdf file:
+
+---
+output: pdf_document
+---
+This one will create a MS Word file:
+
+---
+output: word_document
+---
+And this one will create a Markdown file:
+
+---
+output: md_document
+---
+
+Rendering R Markdown files in the RStudio IDE works the same way. But what if you are using R in a terminal window? You can run the command rmarkdown::render(<file path>) to render any .Rmd file with R.
+
+Create slideshows
+You can also export your file as a slideshow by changing the output field to:
+
+---
+output: beamer_presentation
+---
+which creates a beamer pdf slideshow,
+
+---
+output: ioslides_presentation
+---
+which creates an ioslides HTML slideshow or
+
+---
+output: slidy_presentation
+---
+which creates a slidy HTML slideshow.
+
+R Markdown will start a new slide at each first or second level header in your document. You can insert additional slide breaks with Markdown's horizontal rule syntax:
+
+***
+Everywhere you add these three asterisks in your text, pandoc will create a new slide.
+
+When you render R Markdown documents on your own computer, R Markdown will save a copy of the file (in the output file type) on your machine. It will appear in the same folder that the .Rmd file lives in. Feel free to experiment with the other slideshow formats in this exercise!
+
+Specify knitr and pandoc options
+Each R Markdown output template is a collection of knitr and pandoc options. You can customize your output by overwriting the default options that come with the template.
+
+For example, the YAML header below overwrites the default code highlight style of the pdf_document template to create a document that uses the zenburn style:
+
+    ---
+    title: "Demo"
+    output:
+      pdf_document:
+        highlight: zenburn
+    ---
+The YAML header below overwrites the default bootstrap CSS theme of the html_document template.
+
+    ---
+    title: "Demo"
+    output:
+      html_document:
+        theme: spacelab
+    ---
+Pay close attention to the indentation of the options inside the YAML header; if you do not do this correctly, pandoc will not correctly understand your specifications. As an example, notice the difference between only specifying the output document to be HTML:
+
+    ---
+    output: html_document
+    ---
+and specifying an HTML output document with a different theme:
+
+    ---
+    output:
+      html_document:
+        theme: spacelab
+    ---
+You can learn more about popular options to overwrite in the R Markdown Reference Guide.
+
+---
+title: "Ozone"
+author: "Anonymous"
+date: "January 1, 2015"
+output: 
+  html_document:
+    toc:  true
+    number_sections: true
+---
+Notice that the numbering of the table of contents contains a zero since no first level headers were defined. Each document template has its own set of options to overwrite. Check out the R Markdown Reference Guide for a full, but concise description of the possibilities.
+
+Brand your reports with style sheets
+In the last exercise, we showed a way to change the CSS style of your HTML output: you can set the theme option of html_document to one of default, cerulean, journal, flatly, readable, spacelab, united, or cosmo. (Try it out).
+
+But what if you want to customize your CSS in more specific ways? You can do this by writing a .css file for your report and saving it in the same directory as the .Rmd file. To have your report use the CSS, set the css option of html_document to the file name, like this
+
+    ---
+    title: "Demo"
+    output:
+      html_document:
+        css: styles.css
+    ---
+Custom CSS is an easy way to add branding to your reports.
+
+---
+title: "Ozone"
+author: "Anonymous"
+date: "January 1, 2015"
+output: 
+  html_document:
+    css: faded.css
+---
+
+R Markdown might be a new way of reporting, but branding R Markdown reports in a familiar way is straightforward!
+
+Shiny, interactive web apps: html based formats only
+
+runtime: shiny
+shiny.rstudio.com
+
+Shiny to make your reports interactive
+Shiny is an R package that uses R to build interactive web apps such as data explorers and dashboards. You can add shiny components to an R Markdown file to make an interactive document.
+
+When you do this, you must ensure that
+
+You use an HTML output format (like html_document, ioslides_presentation, or slidy_presentation).
+You add runtime: shiny to the top level of the file's YAML header.
+To learn more about interactivity with Shiny and R, visit shiny.rstudio.com.
+
+
+EXERCISE
+Shiny to make your reports interactive
+Shiny is an R package that uses R to build interactive web apps such as data explorers and dashboards. You can add shiny components to an R Markdown file to make an interactive document.
+
+When you do this, you must ensure that
+
+You use an HTML output format (like html_document, ioslides_presentation, or slidy_presentation).
+You add runtime: shiny to the top level of the file's YAML header.
+To learn more about interactivity with Shiny and R, visit shiny.rstudio.com.
+
+
+---
+title: "Shiny Demo"
+author: "DataCamp"
+output: html_document
+runtime: shiny
+---
+
+This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately.
+
+To learn more, see [Interactive Documents](http://rmarkdown.rstudio.com/authoring_shiny.html).
+
+## Inputs and Outputs
+
+You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
+
+```{r, echo=FALSE}
+inputPanel(
+  selectInput("n_breaks", label = "Number of bins:",
+              choices = c(10, 20, 35, 50), selected = 20),
+
+  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
+              min = 0.2, max = 2, value = 1, step = 0.2)
+)
+
+renderPlot({
+  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
+       xlab = "Duration (minutes)", main = "Geyser eruption duration")
+
+  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
+  lines(dens, col = "blue")
+})
+```
+
+## Embedded Application
+
+It is also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
+
+```{r, echo=FALSE}
+shinyAppDir(
+  system.file("examples/06_tabsets", package = "shiny"),
+  options = list(
+    width = "100%", height = 550
+  )
+)
+```
+
+Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
+
+You can also use the `shinyApp` function to define an application inline rather then in an external directory.
+
+In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
+
+
+Interactive ggvis graphics
+You can also use R Markdown to create reports that use interactive ggvis graphics. ggvis relies on the shiny framework to create interactivity, so you will need to prepare your interactive document in the same ways:
+
+You need to add runtime: shiny to the YAML header
+You need to ensure that your output is a HTML format (like html_document, ioslides_presentation, or slidy_presentation)
+You do not need to wrap your interactive ggvis plots in a render function. They are ready to use as is in an R Markdown document.
+
+---
+title: "ggvis"
+author: "DataCamp"
+output: html_document
+runtime: shiny
+---
+
+ggvis provides a number of ways to enhance plots with interacticity. For example, the density plot below allows users to set the kernel and bandwidth of the plot.
+
+```{r echo = FALSE, message = FALSE}
+library(ggvis)
+
+mtcars %>% ggvis(x = ~wt) %>%
+    layer_densities(
+      adjust = input_slider(.1, 2, value = 1, step = .1, label = "Bandwidth adjustment"),
+      kernel = input_select(
+        c("Gaussian" = "gaussian",
+          "Epanechnikov" = "epanechnikov",
+          "Rectangular" = "rectangular",
+          "Triangular" = "triangular",
+          "Biweight" = "biweight",
+          "Cosine" = "cosine",
+          "Optcosine" = "optcosine"),
+        label = "Kernel")
+    )
+```
+
+When you are done playing with the Shiny app, click next to watch an interview with Yihui Xie, the author of the knitr package, and contributor to the R Markdown package.
+
+Configuring R Markdown (optional) <----------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
